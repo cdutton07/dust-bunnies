@@ -11,17 +11,21 @@ public class PlayerMovement : MonoBehaviour
 
     [Header("Free Look Settings")]
     [SerializeField] private float rotationSpeed = 2f;
-    [SerializeField] private float lookSmoothing = 5f;
+    [SerializeField] private float lookSmoothing = 10f;
     [SerializeField] private float freeReturnTweenDuration = 1f;
 
     [Header("Locked Overhead Settings")]
     [SerializeField] private float overheadForwardOffset = 0.3f;
     [SerializeField] private float overheadDownAngle = 60f;
+    [SerializeField] private float overheadFOVReduction = 10f;
+    [SerializeField] private float overheadEnterAngle = 35f;
+    [SerializeField] private float overheadExitMouseYThreshold = 0.1f;
     [SerializeField] private float overheadTweenDuration = 1f;
 
     [Header("Locked Look Around Settings")]
     [SerializeField] private float lookAroundTiltAngle = 15f;
     [SerializeField] private float lookAroundSideOffset = 0.2f;
+    [SerializeField] private float lookAroundFOVReduction = 5f;
     [SerializeField] private float lookAroundTweenDuration = 0.5f;
 
     enum CamState {
@@ -67,9 +71,7 @@ public class PlayerMovement : MonoBehaviour
         currRotationSpeedZ = Mathf.Lerp(currRotationSpeedZ, Input.GetAxis("Mouse X") * rotationSpeed, Time.deltaTime * lookSmoothing);
         transform.Rotate(Vector3.up * currRotationSpeedZ);
 
-        // Handles returning from locked cam state
-
-
+        // Manual Cam Controls
         if (Input.GetKeyDown(KeyCode.Q) && currentCamState == CamState.Free) {
             SetCamStateLookAroundLeft();
         } else if (Input.GetKeyDown(KeyCode.E) && currentCamState == CamState.Free) {
@@ -93,6 +95,7 @@ public class PlayerMovement : MonoBehaviour
             CollideWithDeskOverlookZone(zone, true);
         }
     }
+
     // LateUpdate is used to ensure camera updates happen after all movement/rotation in Update
     void LateUpdate() {
         if (currentCamState == CamState.Free) {
@@ -100,12 +103,12 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    // Called by DeskOverlookZone while player is in the zone and on exit
+    // Called on Trigger while player is in the zone and on exit
     public void CollideWithDeskOverlookZone(DeskOverlookZone zone, bool exiting) {
         if (currentCamState == CamState.LockedOverhead)
         {
             mouseYIntegrator += Time.deltaTime * Input.GetAxis("Mouse Y");
-            if (mouseYIntegrator > 0.1f 
+            if (mouseYIntegrator > overheadExitMouseYThreshold
                     || !AngleInRange(transform.localEulerAngles.y, zone.triggerDirectionMinAngle, zone.triggerDirectionMaxAngle)
                     || exiting)
             {
@@ -115,7 +118,7 @@ public class PlayerMovement : MonoBehaviour
             float angleToZone = transform.localEulerAngles.y;
             if (AngleInRange(angleToZone, zone.triggerDirectionMinAngle, zone.triggerDirectionMaxAngle)
                 && currentCamState == CamState.Free
-                && camHead.localEulerAngles.x > 35f && camHead.localEulerAngles.x < 90f) {
+                && camHead.localEulerAngles.x > overheadEnterAngle && camHead.localEulerAngles.x < 90f) {
                 SetCamStateLockedOverhead();
             }
         }
@@ -133,7 +136,7 @@ public class PlayerMovement : MonoBehaviour
         Sequence.Create()
             .Group(Tween.LocalPosition(camHead, overheadCamLocalPos, duration: overheadTweenDuration, ease: Ease.InOutQuad))
             .Group(TweenCamRotationX(overheadDownAngle, duration: overheadTweenDuration, ease: Ease.InOutQuad))
-            .Group(Tween.CameraFieldOfView(playerCamera, originalFOV - 10f, duration: overheadTweenDuration, ease: Ease.Linear));
+            .Group(Tween.CameraFieldOfView(playerCamera, originalFOV - overheadFOVReduction, duration: overheadTweenDuration, ease: Ease.Linear));
     }
 
     private void CamReturnFree() {
@@ -153,7 +156,7 @@ public class PlayerMovement : MonoBehaviour
             .Group(TweenCamRotationX(0, duration: lookAroundTweenDuration, ease: Ease.InOutQuad))
             .Group(TweenCamRotationZ(currentCamState == CamState.LockedLookAroundLeft ? lookAroundTiltAngle : -lookAroundTiltAngle,
                 duration: lookAroundTweenDuration, ease: Ease.InOutQuad))
-            .Group(Tween.CameraFieldOfView(playerCamera, originalFOV - 5f, duration: lookAroundTweenDuration, ease: Ease.Linear));
+            .Group(Tween.CameraFieldOfView(playerCamera, originalFOV - lookAroundFOVReduction, duration: lookAroundTweenDuration, ease: Ease.Linear));
     }
     
 
